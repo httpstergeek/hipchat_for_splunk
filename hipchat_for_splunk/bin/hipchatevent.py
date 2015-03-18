@@ -24,7 +24,8 @@ __status__ = 'Production'
 import os
 import sys
 from platform import system
-
+from splunklib.searchcommands import \
+    dispatch, GeneratingCommand, Configuration, Option
 
 # discovering platform
 platform = system().lower()
@@ -59,3 +60,54 @@ data = {'message': message, 'message_format': 'text'}
 hipchat_response = requests.post(url, headers=headers, data=base.tojson(data), timeout=timeout, proxies=proxies)
 
 print hipchat_response.content
+@Configuration()
+class hipChatNotifyComand(GeneratingCommand):
+    """ %(synopsis)
+
+    ##Syntax
+    .. code-block::
+    hipchatnotify msg="<key1>=<value1> <key2>=<value2>" fields="<field>,<field>"
+
+    ##Description
+
+    Returns json events for Service Now API from tables.  Limit 1000 events.
+
+    ##Example
+
+    Return json events where where active is true and contact_type is phone for the past 30 days.
+
+    .. code-block::
+        | getsnow filters="active=true contact_type=phone" daysAgo=30
+        OR
+        | getsnow filters="active=true contact_type=phone" glideSystem="beginningOfLastWeek()"
+
+    """
+
+    msg = Option(
+        doc='''**Syntax:** **msg=***<str>*
+        **Description:** String to attach notification event.''',
+        require=False)
+
+    fields = Option(
+        doc='''**Syntax:** **fields=***<str>*
+        **Description:** list of key values where key and value are present. If no filters specified returns 1 event''',
+        require=False)
+
+
+    color = Option(
+        doc='''**Syntax:** **color=***<str>*
+        **Description:** Background color for message. Valid values: yellow, green, red, purple, gray, random.
+        Defaults to 'yellow''',
+        require=False)
+
+    notify = Option(
+        doc='''**Syntax:** **color=***<bol>*
+        **Description:** whether this message should trigger a user notification (change the tab color, play a sound,
+        notify mobile phones, etc). Each recipient's notification preferences are taken into account. Defaults
+        to false.''',
+        require=False)
+
+    def generate(self):
+        # Parse and set arguments
+        pass
+dispatch(hipChatNotifyComand, sys.argv, sys.stdin, sys.stdout, __name__)
