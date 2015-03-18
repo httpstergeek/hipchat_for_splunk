@@ -24,8 +24,9 @@ __status__ = 'Production'
 import os
 import sys
 from platform import system
+from logging import INFO
 from splunklib.searchcommands import \
-    dispatch, GeneratingCommand, Configuration, Option
+    dispatch, StreamingCommand, Configuration, Option
 
 # discovering platform
 platform = system().lower()
@@ -61,7 +62,7 @@ hipchat_response = requests.post(url, headers=headers, data=base.tojson(data), t
 
 print hipchat_response.content
 @Configuration()
-class hipChatNotifyComand(GeneratingCommand):
+class hipChatNotifyComand(StreamingCommand):
     """ %(synopsis)
 
     ##Syntax
@@ -70,16 +71,16 @@ class hipChatNotifyComand(GeneratingCommand):
 
     ##Description
 
-    Returns json events for Service Now API from tables.  Limit 1000 events.
+    Sends an hipchat notification for each event generated in search.
 
     ##Example
 
-    Return json events where where active is true and contact_type is phone for the past 30 days.
+    Sends an hipchat event
 
     .. code-block::
-        | getsnow filters="active=true contact_type=phone" daysAgo=30
-        OR
-        | getsnow filters="active=true contact_type=phone" glideSystem="beginningOfLastWeek()"
+        ...| hipchatnotify msg="Server threshold exceed threshold" fields="host,avg_cpu" room=splunk
+            OR
+        ...| hipchatnotify msg="Server threshold exceed threshold" room=152648
 
     """
 
@@ -88,11 +89,15 @@ class hipChatNotifyComand(GeneratingCommand):
         **Description:** String to attach notification event.''',
         require=False)
 
-    fields = Option(
-        doc='''**Syntax:** **fields=***<str>*
-        **Description:** list of key values where key and value are present. If no filters specified returns 1 event''',
+    room = Option(
+        doc='''**Syntax:** **room=***<str>*
+        **Description:** Room name or id''',
         require=False)
 
+    fields = Option(
+        doc='''**Syntax:** **fields=***<str>*
+        **Description:** list of fields separated by commas. Default is will send all fields''',
+        require=False)
 
     color = Option(
         doc='''**Syntax:** **color=***<str>*
@@ -108,6 +113,7 @@ class hipChatNotifyComand(GeneratingCommand):
         require=False)
 
     def generate(self):
+        logger = base.setup_logger(INFO)
         # Parse and set arguments
         pass
 dispatch(hipChatNotifyComand, sys.argv, sys.stdin, sys.stdout, __name__)
