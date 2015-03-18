@@ -1,0 +1,11 @@
+# Created by .ignore support plugin (hsz.mobi)
+### python template
+*.idea
+/local
+*.iml
+*.DS_STORE
+*.pyc
+*.log
+*.pyo
+/splunk/
+*.egg
