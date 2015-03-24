@@ -10,3 +10,4 @@
 /splunk/
 *.egg
 splunklib
+*.txt
