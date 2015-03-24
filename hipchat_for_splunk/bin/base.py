@@ -24,6 +24,8 @@ __status__ = 'Production'
 import os
 from splunk.clilib import cli_common as cli
 import json
+import urllib
+import urllib2
 import logging
 import logging.handlers
 
@@ -114,3 +116,18 @@ def tojson(jmessage):
     return jmessage
 
 
+def post(url, data=None, headers=None, proxy=None):
+    if proxy:
+        if ('http' in proxy) or ('https' in proxy):
+            proxy_handler = urllib2.ProxyHandler(proxy)
+            proxy_auth_handler = urllib2.ProBasicAuthHandler()
+            build_opener = urllib2.build_opener(proxy_handler, proxy_auth_handler, urllib2.HTTPHandler)
+            urllib2.install_opener(build_opener)
+        else:
+            raise KeyError("http or https not found in proxy settings")
+
+    url_encode = urllib.urlencode(data)
+    request = urllib2.Request(url, data=url_encode, headers=headers)
+    response = urllib2.urlopen(request)
+
+    return response
