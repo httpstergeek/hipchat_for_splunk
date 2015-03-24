@@ -125,6 +125,7 @@ def request(url, data=None, headers=None, proxy=None, timeout=None):
             urllib2.install_opener(build_opener)
         else:
             raise KeyError("http or https not found in proxy settings")
+            exit()
 
     url_encode = urllib.urlencode(data) if data else None
     connection = urllib2.Request(url, data=url_encode, headers=headers)
