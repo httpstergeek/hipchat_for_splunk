@@ -116,7 +116,7 @@ def tojson(jmessage):
     return jmessage
 
 
-def post(url, data=None, headers=None, proxy=None):
+def request(url, data=None, headers=None, proxy=None, timeout=None):
     if proxy:
         if ('http' in proxy) or ('https' in proxy):
             proxy_handler = urllib2.ProxyHandler(proxy)
@@ -126,8 +126,16 @@ def post(url, data=None, headers=None, proxy=None):
         else:
             raise KeyError("http or https not found in proxy settings")
 
-    url_encode = urllib.urlencode(data)
-    request = urllib2.Request(url, data=url_encode, headers=headers)
-    response = urllib2.urlopen(request)
-
+    url_encode = urllib.urlencode(data) if data else None
+    connection = urllib2.Request(url, data=url_encode, headers=headers)
+    try:
+        response = urllib2.urlopen(connection)
+        response = dict(code=response.getcode(), msg=response.read(), headers=response.info())
+    except urllib2.HTTPError, e:
+        response = dict(code=e.code, msg=e.reason)
+    except urllib2.URLError, e:
+        response = dict(code=None, msg=e.reason)
+    except Exception:
+        import traceback
+        response = dict(code=None, msg=traceback.format_exc())
     return response
