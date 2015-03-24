@@ -92,7 +92,7 @@ class hipChatNotifyComand(StreamingCommand):
     room = Option(
         doc='''**Syntax:** **room=***<str>*
         **Description:** Room name or id''',
-        require=False)
+        require=True)
 
     fields = Option(
         doc='''**Syntax:** **fields=***<str>*
@@ -114,6 +114,18 @@ class hipChatNotifyComand(StreamingCommand):
 
     def generate(self):
         logger = base.setup_logger(INFO)
-        # Parse and set arguments
+        try:
+            default_conf = base.getstanza('hipchat', 'default')
+            conf = base.getstanza('hipchat', 'hipchatnotify')
+            proxies = base.setproxy(conf, default_conf)
+            hipchat_url = conf['url'] if 'url' in conf else default_conf['url']
+            auth_token = conf['authToken'] if 'authToken' in conf else default_conf['autToken']
+        finally:
+            raise Exception("Unable to parse Config File. Check if hipchat.conf exists")
+
+        headers = {'Accept': 'application/json', 'content-type': 'application/json'}
+        hipchat_url = '{0}/v2/room/{1}/notification?auth_token={2}'.format(hipchat_url, room_id, auth_token)
+        hipchat_response = requests.post(url, headers=headers, data=base.tojson(data), timeout=timeout, proxies=proxies)
+
         pass
 dispatch(hipChatNotifyComand, sys.argv, sys.stdin, sys.stdout, __name__)
