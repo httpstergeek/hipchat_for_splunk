@@ -27,7 +27,7 @@ from logging import INFO
 from splunklib.searchcommands import \
     dispatch, StreamingCommand, Configuration, Option
 
-import base
+import util
 
 
 @Configuration()
@@ -80,6 +80,7 @@ class hipChatNotifyComand(StreamingCommand):
         notify mobile phones, etc). Each recipient's notification preferences are taken into account. Defaults
         to false.''',
         require=False)
+
     listrooms = Option(
         doc='''**Syntax:** **color=***<bol>*
         **Description:** whether this message should trigger a user notification (change the tab color, play a sound,
@@ -88,17 +89,16 @@ class hipChatNotifyComand(StreamingCommand):
         require=False)
 
     def generate(self):
-        logger = base.setup_logger(INFO)
+        logger = util.setup_logger(INFO)
         try:
-            default_conf = base.getstanza('hipchat', 'default')
-            local_conf = base.getstanza('hipchat', 'hipchat')
-            proxy_conf = base.setproxy(local_conf, default_conf)
+            default_conf = util.getstanza('hipchat', 'default')
+            local_conf = util.getstanza('hipchat', 'hipchat')
+            proxy_conf = util.setproxy(local_conf, default_conf)
             hipchat_url = local_conf['url'] if 'url' in local_conf else default_conf['url']
-            auth_token = local_conf['authToken'] if 'authToken' in local_conf  else default_conf['autToken']
-            timeout = local_conf['timeout'] if 'timeout' in  local_conf  else default_conf['timeout']
-
-            print
+            auth_token = local_conf['authToken'] if 'authToken' in local_conf else default_conf['autToken']
+            timeout = local_conf['timeout'] if 'timeout' in local_conf else default_conf['timeout']
         finally:
+            logger.info('Unable to parse Config File. Check if hipchat.conf exists')
             raise Exception("Unable to parse Config File. Check if hipchat.conf exists")
             exit()
 
@@ -112,14 +112,17 @@ class hipChatNotifyComand(StreamingCommand):
                 message = None
                 for key, value in record:
                     message = message.join('{0}={1} '.format(key, value))
-                response = base.request(hipchat_room_url, data=data, headers=headers, timeout=timeout, proxy=proxy_conf)
+                response = util.request(hipchat_room_url, data=data, headers=headers, timeout=timeout, proxy=proxy_conf)
+                logger.info('sending notification room={0} status_code={1} response={2}'.format(self.room,
+                                                                                                response['code'],
+                                                                                                response['msg']))
                 record['status_code'] = response['code']
                 record['response'] = response['msg']
-                record['_raw'] = base.tojson(response)
+                record['_raw'] = util.tojson(response)
                 yield record
         else:
             while hipchat_room_list_url:
-                response = base.request(hipchat_room_list_url, headers=headers, timeout=timeout, proxy=proxy_conf)
+                response = util.request(hipchat_room_list_url, headers=headers, timeout=timeout, proxy=proxy_conf)
                 if response['code'] == 200:
                     room_list = json.loads(response['msg'])
                     hipchat_room_list_url = room_list['links']['next'] if 'next' in room_list['links'] else None
@@ -127,7 +130,7 @@ class hipChatNotifyComand(StreamingCommand):
                         room_info = dict()
                         room_info['room_id'] = room['id']
                         room_info['room_name'] = room['id']
-                        room_info['_raw'] = base.tojson(room_info)
+                        room_info['_raw'] = util.tojson(room_info)
                         yield room_info
                 else:
                     yield response
