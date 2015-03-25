@@ -23,6 +23,7 @@ __status__ = 'Production'
 
 import os
 import sys
+import json
 from platform import system
 from logging import INFO
 from splunklib.searchcommands import \
@@ -46,21 +47,9 @@ for filename in os.listdir(egg_dir):
             if platform in filename:
                 sys.path.append(filename)
 
-import requests
 import base
 
-headers = {'Accept': 'application/json', 'content-type': 'application/json'}
-hipchat_url = None
-auth_token = None
-room_id = None
-message = None
-timeout = None
-proxies = None
-url = '{0}/v2/room/{1}/notification?auth_token={2}'.format(hipchat_url, room_id, auth_token)
-data = {'message': message, 'message_format': 'text'}
-hipchat_response = requests.post(url, headers=headers, data=base.tojson(data), timeout=timeout, proxies=proxies)
 
-print hipchat_response.content
 @Configuration()
 class hipChatNotifyComand(StreamingCommand):
     """ %(synopsis)
@@ -92,7 +81,7 @@ class hipChatNotifyComand(StreamingCommand):
     room = Option(
         doc='''**Syntax:** **room=***<str>*
         **Description:** Room name or id''',
-        require=True)
+        require=False)
 
     fields = Option(
         doc='''**Syntax:** **fields=***<str>*
@@ -111,21 +100,58 @@ class hipChatNotifyComand(StreamingCommand):
         notify mobile phones, etc). Each recipient's notification preferences are taken into account. Defaults
         to false.''',
         require=False)
+    listrooms = Option(
+        doc='''**Syntax:** **color=***<bol>*
+        **Description:** whether this message should trigger a user notification (change the tab color, play a sound,
+        notify mobile phones, etc). Each recipient's notification preferences are taken into account. Defaults
+        to false.''',
+        require=False)
 
     def generate(self):
         logger = base.setup_logger(INFO)
         try:
             default_conf = base.getstanza('hipchat', 'default')
-            conf = base.getstanza('hipchat', 'hipchatnotify')
-            proxies = base.setproxy(conf, default_conf)
-            hipchat_url = conf['url'] if 'url' in conf else default_conf['url']
-            auth_token = conf['authToken'] if 'authToken' in conf else default_conf['autToken']
+            local_conf = base.getstanza('hipchat', 'hipchat')
+            proxy_conf = base.setproxy(local_conf, default_conf)
+            hipchat_url = local_conf['url'] if 'url' in local_conf else default_conf['url']
+            auth_token = local_conf['authToken'] if 'authToken' in local_conf  else default_conf['autToken']
+            timeout = local_conf['timeout'] if 'timeout' in  local_conf  else default_conf['timeout']
+
+            print
         finally:
             raise Exception("Unable to parse Config File. Check if hipchat.conf exists")
+            exit()
 
-        headers = {'Accept': 'application/json', 'content-type': 'application/json'}
-        hipchat_url = '{0}/v2/room/{1}/notification?auth_token={2}'.format(hipchat_url, room_id, auth_token)
-        hipchat_response = requests.post(url, headers=headers, data=base.tojson(data), timeout=timeout, proxies=proxies)
+        headers = dict(Authorization='Bearer {0}'.format(auth_token))
+        data = dict(message=None, message_format='text')
+        hipchat_room_url = '{0}/v2/room/{1}/notification'.format(hipchat_url, self.room)
+        hipchat_room_list_url = '{0}/v2/room'.format(hipchat_url)
 
-        pass
+        if not self.listrooms:
+            for record in records:
+                message = None
+                for key, value in record:
+                    message = message.join('{0}={1} '.format(key, value))
+                response = base.request(hipchat_room_url, data=data, headers=headers, timeout=timeout, proxy=proxy_conf)
+                record['status_code'] = response['code']
+                record['response'] = response['msg']
+                record['_raw'] = base.tojson(response)
+                yield record
+        else:
+            while hipchat_room_list_url:
+                response = base.request(hipchat_room_list_url, headers=headers, timeout=timeout, proxy=proxy_conf)
+                if response['code'] == 200:
+                    room_list = json.loads(response['msg'])
+                    hipchat_room_list_url = room_list['links']['next'] if 'next' in room_list['links'] else None
+                    for room in room_list['items']:
+                        room_info = dict()
+                        room_info['room_id'] = room['id']
+                        room_info['room_name'] = room['id']
+                        room_info['_raw'] = base.tojson(room_info)
+                        yield room_info
+                else:
+                    yield response
+        exit()
+
+
 dispatch(hipChatNotifyComand, sys.argv, sys.stdin, sys.stdout, __name__)
