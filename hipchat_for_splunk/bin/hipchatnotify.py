@@ -21,31 +21,11 @@ __maintainer__ = "Bernardo Macias"
 __email__ = 'bmacias@httpstergeek.com'
 __status__ = 'Production'
 
-import os
 import sys
 import json
-from platform import system
 from logging import INFO
 from splunklib.searchcommands import \
     dispatch, StreamingCommand, Configuration, Option
-
-# discovering platform
-platform = system().lower()
-if platform == 'darwin':
-    platform = 'macosx'
-
-# Loading eggs into python execution path
-running_dir = os.path.dirname(os.path.realpath(__file__))
-egg_dir = os.path.join(running_dir, 'eggs')
-for filename in os.listdir(egg_dir):
-    file_segments = filename.split('-')
-    if filename.endswith('.egg'):
-        filename = os.path.join(egg_dir, filename)
-        if len(file_segments) <= 3:
-            sys.path.append(filename)
-        else:
-            if platform in filename:
-                sys.path.append(filename)
 
 import base
 
