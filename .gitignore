@@ -7,8 +7,9 @@
 *.pyc
 *.log
 *.pyo
-splunk/
+/splunk/
 *.egg
 local/
 splunklib/
 *.txt
+test.py
